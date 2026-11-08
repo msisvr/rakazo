@@ -26,10 +26,26 @@ vi.mock("../lib/rpc", () => ({
           label: "Custom",
           billing: "API key",
         },
+        {
+          provider: "local",
+          providerName: "Local (Ollama / LM Studio)",
+          id: "mimo-v2.6:9b-q4_K_M",
+          label: "mimo-v2.6:9b-q4_K_M",
+          billing: "Runs on infrastructure configured by the server operator.",
+          auth: "api-key",
+        },
       ]),
       probeOpenAiCompatible: vi.fn(async () => ({
         models: Array.from({ length: 11 }, (_, index) => `found-${index}`),
       })),
+    },
+    bots: {
+      list: vi.fn(async () => []),
+      create: vi.fn(async () => ({ id: "bot-1" })),
+    },
+    onboarding: {
+      start: vi.fn(async () => undefined),
+      promptFocus: vi.fn(async () => undefined),
     },
   },
 }));
@@ -137,5 +153,60 @@ it("finds and searches a long custom endpoint list during onboarding", async () 
   ]);
   await act(async () => document.querySelector<HTMLElement>("[cmdk-item]")!.click());
   expect(document.querySelector('[aria-label="Models from server"]')?.textContent).toBe("found-10");
+  await act(async () => root.unmount());
+});
+
+it("leaves /onboarding/model when the deployment already has a model", async () => {
+  vi.mocked(rpc.bots.create).mockClear();
+  const root = createRoot(document.body.appendChild(document.createElement("div")));
+  await act(async () =>
+    root.render(
+      <MemoryRouter initialEntries={["/onboarding/model"]}>
+        <Routes>
+          <Route path="/onboarding/:step?" element={<OnboardingPage />} />
+          <Route path="/app/:botId" element={<div>Chat</div>} />
+        </Routes>
+      </MemoryRouter>,
+    ),
+  );
+  expect(document.body.textContent).not.toContain("Connect a model");
+  await act(async () =>
+    account.load({
+      needsModel: false,
+      needsSignupSurvey: false,
+      billingEnabled: false,
+      defaultProvider: "local",
+      defaultModel: "mimo-v2.6:9b-q4_K_M",
+      hostCredentialProvider: "local",
+      hostCredentialSource: "host",
+    }),
+  );
+  await act(async () => {
+    await Promise.resolve();
+  });
+  expect(document.body.textContent).not.toContain("Connect a model");
+  expect(document.body.textContent).not.toContain("API key");
+  expect(document.body.textContent).toContain("Chat");
+  expect(rpc.bots.create).toHaveBeenCalled();
+  await act(async () => root.unmount());
+});
+
+it("keeps /onboarding/model when a model is still required", async () => {
+  vi.mocked(rpc.bots.create).mockClear();
+  const root = createRoot(document.body.appendChild(document.createElement("div")));
+  await act(async () =>
+    root.render(
+      <MemoryRouter initialEntries={["/onboarding/model"]}>
+        <Routes>
+          <Route path="/onboarding/:step?" element={<OnboardingPage />} />
+        </Routes>
+      </MemoryRouter>,
+    ),
+  );
+  await act(async () =>
+    account.load({ needsModel: true, needsSignupSurvey: false, billingEnabled: false }),
+  );
+  expect(document.querySelector("h1")?.textContent).toBe("Connect a model");
+  expect(rpc.bots.create).not.toHaveBeenCalled();
   await act(async () => root.unmount());
 });

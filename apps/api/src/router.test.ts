@@ -774,6 +774,7 @@ describe("model setup gate", () => {
     deploymentModelConfigured?: boolean;
     deploymentModelHostCredentials?: boolean;
     deploymentModelCredentialCipher?: string;
+    billing?: RouterDeps["billing"];
   }) {
     const prisma = {
       user: {
@@ -804,6 +805,7 @@ describe("model setup gate", () => {
     } as unknown as PrismaClient;
     const deps = {
       prisma,
+      billing: options.billing,
       env: {
         agentRuntime: options.agentRuntime,
         maxUploadSizeBytes: options.maxUploadSizeBytes,
@@ -906,6 +908,37 @@ describe("model setup gate", () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
       json: expect.objectContaining({ needsModel: false }),
+    });
+  });
+
+  it("lets a keyless host model skip onboarding without credits, and still gates a hosted key", async () => {
+    const billing = {
+      status: async () => ({
+        funding: null,
+        balanceUsd: 0,
+        creditPurchasesEnabled: true,
+      }),
+    } as unknown as RouterDeps["billing"];
+    const host = modelGateDeps({
+      agentRuntime: "pi",
+      deploymentModelConfigured: true,
+      deploymentModelHostCredentials: true,
+      billing,
+    });
+    const keyed = modelGateDeps({
+      agentRuntime: "pi",
+      deploymentModelConfigured: true,
+      billing,
+    });
+
+    const withHost = await call(host.handler, host.actor, "me", null);
+    const withKey = await call(keyed.handler, keyed.actor, "me", null);
+
+    await expect(withHost.json()).resolves.toEqual({
+      json: expect.objectContaining({ needsModel: false }),
+    });
+    await expect(withKey.json()).resolves.toEqual({
+      json: expect.objectContaining({ needsModel: true }),
     });
   });
 

@@ -140,6 +140,26 @@ describe("resolveDeploymentModel", () => {
       configured: true,
       hostCredentials: true,
     });
+    // Ollama tags keep the colon; eligibility matches the whole id.
+    expect(
+      resolveDeploymentModel({
+        PI_DEFAULT_PROVIDER: "local",
+        PI_DEFAULT_MODEL: "mimo-v2.6:9b-q4_K_M",
+        PI_DEFAULT_CREDENTIALS: "host",
+        RAKAZO_LOCAL_MODELS: "mimo-v2.6:9b-q4_K_M",
+        RAKAZO_LOCAL_MODELS_URL: "http://172.28.247.2:11434/v1",
+        RAKAZO_LOCAL_CONTEXT_WINDOW: "8192",
+        RAKAZO_LOCAL_MAX_TOKENS: "2048",
+        RAKAZO_LOCAL_VISION_MODELS: "mimo-v2.6:9b-q4_K_M",
+        OPENROUTER_API_KEY: "or-key",
+      }),
+    ).toEqual({
+      provider: "local",
+      model: "mimo-v2.6:9b-q4_K_M",
+      key: undefined,
+      configured: true,
+      hostCredentials: true,
+    });
   });
 
   it.each([
