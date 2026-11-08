@@ -7,6 +7,57 @@ const base = {
 };
 
 describe("loadEnv", () => {
+  it("configures a declared keyless local model and leaves cloud keys on their providers", () => {
+    const local = loadEnv({
+      ...base,
+      PI_DEFAULT_PROVIDER: "local",
+      PI_DEFAULT_MODEL: "mimo-v2.6:9b-q4_K_M",
+      PI_DEFAULT_CREDENTIALS: "host",
+      RAKAZO_LOCAL_MODELS: "mimo-v2.6:9b-q4_K_M",
+      OPENROUTER_API_KEY: "or-key",
+    });
+    expect(local).toMatchObject({
+      defaultProvider: "local",
+      defaultModel: "mimo-v2.6:9b-q4_K_M",
+      deploymentModelConfigured: true,
+      deploymentModelHostCredentials: true,
+      deploymentModelKey: undefined,
+    });
+    expect(
+      loadEnv({
+        ...base,
+        PI_DEFAULT_PROVIDER: "local",
+        PI_DEFAULT_MODEL: "mimo-v2.6:9b-q4_K_M",
+        PI_DEFAULT_CREDENTIALS: "host",
+      }),
+    ).toMatchObject({
+      deploymentModelConfigured: false,
+      deploymentModelHostCredentials: false,
+      deploymentModelKey: undefined,
+    });
+    expect(
+      loadEnv({
+        ...base,
+        PI_DEFAULT_PROVIDER: "anthropic",
+        PI_DEFAULT_MODEL: "claude-sonnet-5",
+        ANTHROPIC_API_KEY: "sk-ant-test",
+        RAKAZO_LOCAL_MODELS: "mimo-v2.6:9b-q4_K_M",
+      }),
+    ).toMatchObject({
+      defaultProvider: "anthropic",
+      defaultModel: "claude-sonnet-5",
+      deploymentModelConfigured: true,
+      deploymentModelHostCredentials: false,
+      deploymentModelKey: "sk-ant-test",
+    });
+    expect(loadEnv({ ...base, OPENROUTER_API_KEY: "or-key" })).toMatchObject({
+      defaultProvider: "openrouter",
+      deploymentModelConfigured: true,
+      deploymentModelHostCredentials: false,
+      deploymentModelKey: "or-key",
+    });
+  });
+
   it("defaults the attachment count to four and accepts configured bounds", () => {
     expect(loadEnv(base).maxAttachmentsPerMessage).toBe(4);
     expect(loadEnv({ ...base, MAX_ATTACHMENTS_PER_MESSAGE: " " }).maxAttachmentsPerMessage).toBe(4);

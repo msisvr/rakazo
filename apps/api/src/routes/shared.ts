@@ -118,9 +118,13 @@ export async function modelSetup(deps: RouterDeps, actor: Actor) {
   const funding = deps.billing ? await deps.billing.status(actor) : null;
   // A balance keeps paying for the deployment model after switching to an own key.
   const creditsAvailable = funding?.funding === "credits" || (funding?.balanceUsd ?? 0) > 0;
+  // Credit purchases fund a hosted key. A model on the host's own credentials — a local
+  // server, or a cloud role — does not draw on that balance.
   const hasDeployment =
     Boolean(deps.env.deploymentModelConfigured) &&
-    (!funding?.creditPurchasesEnabled || creditsAvailable);
+    (Boolean(deps.env.deploymentModelHostCredentials) ||
+      !funding?.creditPurchasesEnabled ||
+      creditsAvailable);
   return {
     main,
     model:
